@@ -25,7 +25,7 @@ npm run dev
 
 | Variabel | Beskrivning |
 |----------|-------------|
-| VITE_API_URL | URL till backend-API:t |
+| VITE_API_URL | http://localhost:3000 |
 
 ## Bygga för produktion
 
@@ -40,5 +40,5 @@ npm run build
 
 Dokumentera löpande vad ni gjort och hur ni löst problem.
 
-- Vecka 3: ...
+- Vecka 3: 
 - Vecka 4: ...
