@@ -11,7 +11,7 @@ on:
     #
     # Obs: Pages har bara EN publicerad version. Pushar ni till båda brancherna
     # är det den senaste deployen som ligger uppe.
-    branches: [main, dev]
+    branches: [main, dev, feature]
 
   # Gör att workflowet kan köras manuellt från Actions-fliken
   workflow_dispatch:
