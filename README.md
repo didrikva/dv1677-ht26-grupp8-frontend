@@ -40,5 +40,5 @@ npm run build
 
 Dokumentera löpande vad ni gjort och hur ni löst problem.
 
-- Vecka 3: 
+- Vecka 3: Vi skapade ett frontend repo samt laddade ner en grundtemplate för vue. Vi tänker vidareutveckla frontenden när vi har löst API i backend men grunden är på plats.
 - Vecka 4: ...

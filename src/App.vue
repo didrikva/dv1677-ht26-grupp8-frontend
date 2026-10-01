@@ -1,47 +1,65 @@
+```vue
 <script setup>
-import HelloWorld from './components/HelloWorld.vue'
-import TheWelcome from './components/TheWelcome.vue'
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="./assets/logo.png" width="125" height="125" />
+  <div class="app">
+    <header>
+      <h1>
+        <a href="/">Hejsan svejsan</a>
+      </h1>
 
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-    </div>
-  </header>
+      <p class="sub">
+        Vue + Vite på GitHub Pages — data från
+        <code>deploy-example-backend</code>
+      </p>
+    </header>
 
-  <main>
-    <TheWelcome />
-  </main>
+    <main>
+    </main>
+
+    <footer>
+      <a href="https://github.com/jsramverk-ht26-grupp8/frontend">
+        Källkod på GitHub
+      </a>
+    </footer>
+  </div>
 </template>
 
 <style scoped>
+.app {
+  min-height: 100vh;
+}
+
 header {
-  line-height: 1.5;
+  padding: 2rem;
 }
 
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
+header h1 {
+  margin: 0;
 }
 
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
+header h1 a {
+  text-decoration: none;
+  color: inherit;
+}
 
-  .logo {
-    margin: 0 2rem 0 0;
-  }
+.sub {
+  color: #666;
+}
 
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
+main {
+  padding: 2rem;
+}
+
+footer {
+  padding: 2rem;
+  margin-top: 2rem;
+  border-top: 1px solid #ddd;
+}
+
+footer a {
+  color: inherit;
 }
 </style>
+```
