@@ -1,6 +1,6 @@
 ```vue
 <script setup>
-import ResourceList from './components/ResourceList.vue/index.js'
+import ResourceList from './components/ResourceList.vue'
 </script>
 
 <template>
