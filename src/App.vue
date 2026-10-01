@@ -1,5 +1,6 @@
 ```vue
 <script setup>
+import ResourceList from './components/ResourceList.vue/index.js'
 </script>
 
 <template>
@@ -11,15 +12,16 @@
 
       <p class="sub">
         Vue + Vite på GitHub Pages — data från
-        <code>deploy-example-backend</code>
+        <code>dv1677-ht26-grupp8-backend</code>
       </p>
     </header>
 
     <main>
+      <ResourceList />
     </main>
 
     <footer>
-      <a href="https://github.com/jsramverk-ht26-grupp8/frontend">
+      <a href="https://github.com/dv1677-ht26-grupp8/frontend">
         Källkod på GitHub
       </a>
     </footer>

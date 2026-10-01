@@ -10,10 +10,10 @@ async function request(path) {
   return res.json()
 }
 
-export function getCourses() {
-  return request('/api/courses')
+export function getResources() {
+  return request('/api/resources')
 }
 
-export function getCourse(id) {
-  return request(`/api/courses/${id}`)
+export function getResource(id) {
+  return request(`/api/resources/${id}`)
 }
