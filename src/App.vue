@@ -1,24 +1,26 @@
 ```vue
 <script setup>
 import ResourceList from './components/ResourceList.vue'
+import logo from './assets/logo.png'
 </script>
 
 <template>
   <div class="app">
     <header>
       <h1>
-        <a href="/">Hejsan svejsan</a>
+        <RouterLink to="/">Resurser</RouterLink>
       </h1>
-
-      <p class="sub">
-        Vue + Vite på GitHub Pages — data från
-        <code>dv1677-ht26-grupp8-backend</code>
-      </p>
+      <div class="header-content">
+        <p>
+          <img :src="logo" alt="Logo" />
+        </p>
+        <p class="sub">
+          Vue + Vite på GitHub Pages — data från
+          <code>dv1677-ht26-grupp8-backend</code>
+        </p>
+      </div>
+      <RouterView />
     </header>
-
-    <main>
-      <ResourceList />
-    </main>
 
     <footer>
       <a href="https://github.com/dv1677-ht26-grupp8/frontend">
@@ -62,6 +64,16 @@ footer {
 
 footer a {
   color: inherit;
+}
+
+header img {
+  max-width: 100px;
+  height: auto;
+}
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 </style>
 ```

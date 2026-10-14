@@ -34,11 +34,18 @@ onMounted(async () => {
     </p>
 
     <ul v-else class="resource-grid">
-      <li v-for="resource in resources" :key="resource._id" :class="resource.active ? 'active' : 'notActive'">
-        <p>{{ resource.name }}{{ resource.provider ? ' -- ' + resource.provider : '' }}</p>
-        <p>{{ resource.description }}</p>
-        <p>Tillgänglig: {{ resource.active ? 'Ja' : 'Nej' }}</p>
-        <!-- <pre>{{ JSON.stringify(resource, null, 2) }}</pre> -->
+      <li
+        v-for="resource in resources"
+        :key="resource._id"
+        :class="resource.active ? 'active' : 'notActive'"
+      >
+        <RouterLink :to="`/resurser/${resource._id}`">
+          <p>
+            {{ resource.name }}{{ resource.provider ? ' -- ' + resource.provider : '' }}
+          </p>
+          <p>{{ resource.description }}</p>
+          <p>Tillgänglig: {{ resource.active ? 'Ja' : 'Nej' }}</p>
+        </RouterLink>
       </li>
     </ul>
   </section>
