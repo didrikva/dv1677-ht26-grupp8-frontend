@@ -1,6 +1,5 @@
 ```vue
 <script setup>
-import ResourceList from './components/ResourceList.vue'
 import logo from './assets/logo.png'
 </script>
 
@@ -69,6 +68,7 @@ footer a {
 header img {
   max-width: 100px;
   height: auto;
+  border-radius: 50%;
 }
 .header-content {
   display: flex;
