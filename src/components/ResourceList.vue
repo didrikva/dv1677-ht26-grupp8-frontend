@@ -44,9 +44,22 @@ onMounted(async () => {
             {{ resource.name }}{{ resource.provider ? ' -- ' + resource.provider : '' }}
           </p>
           <p>{{ resource.description }}</p>
+          <p v-if="resource.capacity?.ramMb">
+            {{ Math.round(resource.capacity.ramMb / 1024) }} GB RAM
+          </p>
+
+          <p v-if="resource.capacity?.diskGb">
+            {{ resource.capacity.diskGb.toFixed(1) }} GB Disk
+          </p>
+
+          <p v-if="resource.capacity?.vcpus">
+            {{ resource.capacity.vcpus }} vCPU
+          </p>
+          
           <p>Tillgänglig: {{ resource.active ? 'Ja' : 'Nej' }}</p>
         </RouterLink>
       </li>
+      <pre>{{ JSON.stringify(resources, null, 2) }}</pre>
     </ul>
   </section>
 </template>
