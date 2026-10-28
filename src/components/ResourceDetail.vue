@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getResource } from '../api.js'
+import { getResource, createBooking } from '../api.js'
+import { useAuth } from '../composables/useAuth.js'
 import { VueDatePicker } from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css'
 
@@ -12,6 +13,34 @@ const error = ref('')
 const date = ref();
 const amount_resources = ref(0);
 const isPopupOpen = ref(false);
+const { token } = useAuth()
+const bookingError = ref('')
+const bookingSuccess = ref('')
+
+async function bookResource() {
+  bookingError.value = ''
+  bookingSuccess.value = ''
+
+  if (!date.value) {
+    bookingError.value = 'Välj datum och tid först.'
+    return
+  }
+
+  const start = new Date(date.value)
+  const end = new Date(start.getTime() + 60 * 60 * 1000)
+
+  try {
+    await createBooking({
+      resource_id: route.params.id,
+      start_time: start.toISOString(),
+      end_time: end.toISOString()
+    })
+    bookingSuccess.value = 'Bokningen är skapad.'
+    isPopupOpen.value = false
+  } catch (err) {
+    bookingError.value = err.message
+  }
+}
 onMounted(async () => {
   try {
     const response = await getResource(route.params.id)
@@ -81,11 +110,17 @@ onMounted(async () => {
     <p v-if="error">{{ error }}</p>
     <p v-else-if="!resource">Laddar resurs...</p>
     <pre v-else>{{ JSON.stringify(resource, null, 2) }} {{ JSON.stringify(response, null, 2) }}</pre>
-    <button class="book-button" @click="isPopupOpen = true">
+    <button v-if="token" class="book-button" @click="isPopupOpen = true">
         Boka resurs
     </button>
+    <p v-else>
+        <RouterLink :to="{ path: '/login', query: { redirect: route.fullPath } }">Logga in</RouterLink>
+        för att boka.
+    </p>
+    <p v-if="bookingSuccess">{{ bookingSuccess }}</p>
+    <p v-if="bookingError" role="alert">{{ bookingError }}</p>
     <div
-        v-if="isPopupOpen"
+        v-if="isPopupOpen && token"
         class="popup-overlay"
         @click.self="isPopupOpen = false"
     >
