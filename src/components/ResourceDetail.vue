@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getResource } from '../api.js'
+import { getResource, createBooking  } from '../api.js'
 import { VueDatePicker } from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css'
 
@@ -10,8 +10,14 @@ const resource = ref(null)
 const bookings = ref([])
 const error = ref('')
 const date = ref();
-const amount_resources = ref(0);
+const amount_resources = ref([]);
 const isPopupOpen = ref(false);
+const vcpu = ref();
+const ram = ref();
+const amountCpu = ref(0)
+const amountRam = ref(0)
+const amountDisk = ref(1)
+
 onMounted(async () => {
   try {
     const response = await getResource(route.params.id)
@@ -19,11 +25,90 @@ onMounted(async () => {
     bookings.value = response.bookings
     console.log('Resource:', resource.value)
     console.log('Bookings:', bookings.value)
+    getResourceInformation(resource.value)
   } catch (err) {
     console.error('Kunde inte hämta resursen:', err)
     error.value = 'Kunde inte hämta resursen.'
   }
 })
+function getResourceInformation(resource) {
+  if (resource.capacity) {
+    vcpu.value = resource.capacity.vcpus
+    ram.value = resource.capacity.ramMb
+  } else if (resource.description) {
+    const parts = resource.description.split(',')
+
+    const cpuParts = parts[0].trim().split(' ')
+    const ramParts = parts[1].trim().split(' ')
+
+    vcpu.value = Number(cpuParts[0])
+    ram.value = Number(ramParts[0])
+  }
+}
+function validateMax(value, max) {
+  const number = Number(value)
+
+  if (!Number.isFinite(number)) return 0
+
+  return Math.min(Math.max(number, 0), max)
+}
+
+const bookResource = async () => {
+    if (!date.value || !resource.value) {
+        error.value = 'Vänligen välj datum och tid innan du bokar.'
+        return
+    }
+
+    const startsAt = new Date(date.value)
+    const endsAt = new Date(startsAt.getTime() + 60 * 60 * 1000)
+
+    const provider = resource.value.provider ?? resource.value.type
+
+    const bookingData = {
+        resourceId: resource.value._id,
+        startsAt: startsAt.toISOString(),
+        endsAt: endsAt.toISOString()
+    }
+
+    if (provider === 'proxmox' || provider === 'openstack') {
+        bookingData.want = {
+            vcpus: Number(amountCpu.value),
+            ramMb: Number(amountRam.value),
+            ...(provider === 'proxmox'
+            ? { diskGb: Number(amountDisk.value) }
+            : {})
+        }
+    }
+
+    console.log('Bokningsdata som skickas:', JSON.stringify(bookingData, null, 2))
+    console.log('Resurs:', resource.value)
+    console.log('CPU:', amountCpu.value)
+    console.log('RAM:', amountRam.value)
+    console.log('Disk:', amountDisk.value)
+
+    try {
+        const result = await createBooking(bookingData)
+
+        console.log('Bokning lyckades:', result)
+        error.value = ''
+        isPopupOpen.value = false
+
+    } catch (err) {
+        console.error('Kunde inte boka resursen:', err)
+
+        if (err.status === 409) {
+            error.value =
+                err.code === 'CAPACITY_EXCEEDED'
+                    ? 'Det finns inte tillräckligt med ledig kapacitet.'
+                    : err.code === 'ALREADY_BOOKED'
+                        ? 'Maskinen är redan bokad.'
+                        : err.message || 'Bokningen nekades.'
+        } else {
+            error.value = err.message || 'Kunde inte boka resursen.'
+        }
+    }
+}
+
 </script>
 
 <template>
@@ -33,7 +118,7 @@ onMounted(async () => {
     <div v-if="resource">
       <p>Resursens namn: {{ resource.name }}</p>
       <p v-if="resource.capacity?.ramMb">
-        {{ Math.round(resource.capacity.ramMb / 1024) }} GB RAM
+        {{ resource.capacity.ramMb }} MB RAM
       </p>
 
       <p v-if="resource.capacity?.diskGb">
@@ -62,7 +147,7 @@ onMounted(async () => {
                 <button @click="date = new Date(); date.setHours(hour - 1, 0, 0, 0)">
                     <h3>{{ hour - 1 }}:00</h3>
                     <p v-if="resource.capacity?.ramMb">
-                        {{ Math.round(resource.capacity.ramMb / 1024) }} GB RAM
+                        {{ resource.capacity.ramMb }} MB RAM
                     </p>
 
                     <p v-if="resource.capacity?.diskGb">
@@ -105,9 +190,47 @@ onMounted(async () => {
         <p v-else>
             Inget datum valt. Vänligen välj ett datum och tid innan du bekräftar bokningen.
         </p>
-        <p v-if="resource.provider !== 'maas'" >
-            Antal resurser: {{ amount_resources }}
+        <p v-if="resource.provider === 'maas' || resource.type === 'maas'" >
+            Antal resurser: {{   resource.description || `${resource.capacity.vcpus} vCPU och ${resource.capacity.ramMb} MB RAM` }}
         </p>
+        <div v-else>
+            <label for="ram">RAM (MB):</label>
+            <input
+            id="ram"
+            type="number"
+            min="0"
+            :max="ram"
+            :value="amountRam"
+            @input="amountRam = validateMax(Number($event.target.value), ram)"
+            /><br>
+            <div v-if="resource.capacity?.diskGb">
+                <label for="disk">Disk (GB):</label>
+                <input
+                    id="disk"
+                    type="number"
+                    min="0"
+                    :max="resource.capacity.diskGb"
+                    :value="amountDisk"
+                    @input="amountDisk = validateMax(Number($event.target.value), resource.capacity.diskGb)"
+                />
+            </div>
+            <label for="cpu">Antal vCPU:</label>
+            <input
+            id="cpu"
+            type="number"
+            min="0"
+            :max="vcpu"
+            :value="amountCpu"
+            @input="amountCpu = validateMax(Number($event.target.value), vcpu)"
+            />
+            <!-- <p>{{ vcpu }}</p>
+            <p>{{ ram }}</p>
+            <p>{{ amountCpu }}</p>
+            <p>{{ amountDisk }}</p>
+            <p>{{ amountRam }}</p> -->
+
+        </div>
+
 
         <div class="popup-actions">
             <button class="booking-button" @click="bookResource">Bekräfta bokning</button>
@@ -166,7 +289,7 @@ button {
   color: #222;
   border-radius: 12px;
   border: 3px solid #ddd;
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: bold;
 }
 
@@ -203,5 +326,13 @@ button {
   border: 1px solid #ddd;
   border-radius: 8px;
   background-color: #f0f0f0;
+}
+label {
+    padding: 10px;
+}
+input {
+    padding: 5px;
+    margin: 10px;
+    width: 100px;
 }
 </style>

@@ -45,7 +45,7 @@ onMounted(async () => {
           </p>
           <p>{{ resource.description }}</p>
           <p v-if="resource.capacity?.ramMb">
-            {{ Math.round(resource.capacity.ramMb / 1024) }} GB RAM
+            {{ resource.capacity.ramMb }} MB RAM
           </p>
 
           <p v-if="resource.capacity?.diskGb">
