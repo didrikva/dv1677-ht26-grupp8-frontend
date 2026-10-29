@@ -23,30 +23,7 @@ const { token } = useAuth()
 const bookingError = ref('')
 const bookingSuccess = ref('')
 
-async function bookResource() {
-  bookingError.value = ''
-  bookingSuccess.value = ''
 
-  if (!date.value) {
-    bookingError.value = 'Välj datum och tid först.'
-    return
-  }
-
-  const start = new Date(date.value)
-  const end = new Date(start.getTime() + 60 * 60 * 1000)
-
-  try {
-    await createBooking({
-      resource_id: route.params.id,
-      start_time: start.toISOString(),
-      end_time: end.toISOString()
-    })
-    bookingSuccess.value = 'Bokningen är skapad.'
-    isPopupOpen.value = false
-  } catch (err) {
-    bookingError.value = err.message
-  }
-}
 onMounted(async () => {
   try {
     const response = await getResource(route.params.id)

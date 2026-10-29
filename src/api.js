@@ -2,8 +2,9 @@
 import { useAuth } from './composables/useAuth.js'
 const BASE_URL = import.meta.env.VITE_API_URL || ''
 
-async function request(path) {
-  const res = await fetch(`${BASE_URL}${path}`)
+// Öppna anrop, ingen token behövs
+async function request(path, options = {}) {
+  const token = sessionStorage.getItem('token')
 
   const headers = {
     'Content-Type': 'application/json',
@@ -79,18 +80,18 @@ export function getResources() {
 }
 
 export function getResource(id) {
-  return request(`/api/resources/${id}`)
+    return request(`/api/resources/${id}`)
+}
+
+export function createBooking(booking) {
+  return apiFetch('/api/bookings', {
+    method: 'POST',
+    body: booking
+  })
 }
 
 export function getMyBookings() {
   return apiFetch('/api/bookings/mine')
-}
-
-export function createBooking({ resource_id, start_time, end_time }) {
-  return apiFetch('/api/bookings', {
-    method: 'POST',
-    body: { resource_id, start_time, end_time }
-  })
 }
 
 export function updateBooking(id, { resource_id, start_time, end_time, status }) {
