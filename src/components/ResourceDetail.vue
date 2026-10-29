@@ -1,10 +1,11 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { getResource, createBooking } from '../api.js'
 import { useAuth } from '../composables/useAuth.js'
 import { VueDatePicker } from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css'
+import { io } from 'socket.io-client'
 
 const route = useRoute()
 const resource = ref(null)
@@ -17,38 +18,112 @@ const vcpu = ref();
 const ram = ref();
 const amountCpu = ref(0)
 const amountRam = ref(0)
-const amountDisk = ref(1)
-
+const amountDisk = ref(0)
+let socket
 const { token } = useAuth()
 const bookingError = ref('')
 const bookingSuccess = ref('')
+
+const availableVcpu = computed(() => {
+  const used = bookings.value.reduce(
+    (sum, booking) => sum + Number(booking.amount_cpu || 0),
+    0
+  )
+
+  return Math.max(0, vcpu.value - used)
+})
+
+const availableRam = computed(() => {
+  const used = bookings.value.reduce(
+    (sum, booking) => sum + Number(booking.amount_ram || 0),
+    0
+  )
+
+  return Math.max(0, ram.value - used)
+})
+
+const availableDisk = computed(() => {
+  const used = bookings.value.reduce(
+    (sum, booking) => sum + Number(booking.amount_disk || 0),
+    0
+  )
+
+  return Math.max(0, ram.value - used)
+})
 
 
 onMounted(async () => {
   try {
     const response = await getResource(route.params.id)
+
     resource.value = response.resource
     bookings.value = response.bookings
+
     console.log('Resource:', resource.value)
     console.log('Bookings:', bookings.value)
+
     getResourceInformation(resource.value)
+
+    socket = io('https://dv1677-laforge.nplab.bth.se', {
+        transports: ['polling']
+    })
+
+    socket.on('connect', () => {
+      console.log('Socket ansluten:', socket.id)
+
+      socket.emit('join', String(resource.value._id))
+    })
+
+    socket.on('connect', () => {
+        console.log('Socket ansluten:', socket.id)
+        socket.emit('join', String(resource.value._id))
+    })
+
+    socket.on('booking:created', async () => {
+    try {
+        const updated = await getResource(route.params.id)
+
+        resource.value = updated
+        bookings.value = updated.bookings
+        console.log('Uppdaterad resurs:', updated)
+
+        getResourceInformation(updated)
+    } catch (err) {
+        console.error('Kunde inte uppdatera resursen:', err)
+    }
+    })
   } catch (err) {
     console.error('Kunde inte hämta resursen:', err)
     error.value = 'Kunde inte hämta resursen.'
   }
 })
+
+onUnmounted(() => {
+  if (socket) {
+    socket.disconnect()
+  }
+})
+
+
 function getResourceInformation(resource) {
   if (resource.capacity) {
     vcpu.value = resource.capacity.vcpus
     ram.value = resource.capacity.ramMb
   } else if (resource.description) {
-    const parts = resource.description.split(',')
+    const info = splitDescription(resource.description)
+    vcpu.value = info.vcpus
+    ram.value = info.ramMb
+  }
+}
+function splitDescription(description) {
+  const parts = description.split(',')
 
-    const cpuParts = parts[0].trim().split(' ')
-    const ramParts = parts[1].trim().split(' ')
+  const cpuParts = parts[0].trim().split(' ')
+  const ramParts = parts[1].trim().split(' ')
 
-    vcpu.value = Number(cpuParts[0])
-    ram.value = Number(ramParts[0])
+  return {
+    vcpus: Number(cpuParts[0]),
+    ramMb: Number(ramParts[0])
   }
 }
 function validateMax(value, max) {
@@ -153,17 +228,19 @@ const bookResource = async () => {
                 <button @click="date = new Date(); date.setHours(hour - 1, 0, 0, 0)">
                     <h3>{{ hour - 1 }}:00</h3>
                     <p v-if="resource.capacity?.ramMb">
-                        {{ resource.capacity.ramMb }} MB RAM
+                        {{ availableRam }} GB RAM tillgängligt
                     </p>
 
                     <p v-if="resource.capacity?.diskGb">
-                        {{ resource.capacity.diskGb.toFixed(1) }} GB Disk
+                        {{ availableDisk }} GB Disk
                     </p>
 
                     <p v-if="resource.capacity?.vcpus">
-                        {{ resource.capacity.vcpus }} vCPU
+                        {{ availableVcpu }} vCPU tillgängliga
                     </p>
-                    <p>{{ resource.description }}</p>
+                    <p v-if="resource.description">
+                        {{ vcpu }} vCPU <br> {{ ram }} GB RAM
+                    </p>
                 </button>
             </li>
         </ul>
@@ -206,7 +283,7 @@ const bookResource = async () => {
             Antal resurser: {{   resource.description || `${resource.capacity.vcpus} vCPU och ${resource.capacity.ramMb} MB RAM` }}
         </p>
         <div v-else>
-            <label for="ram">RAM (MB):</label>
+            <label for="ram">RAM (GB):</label>
             <input
             id="ram"
             type="number"

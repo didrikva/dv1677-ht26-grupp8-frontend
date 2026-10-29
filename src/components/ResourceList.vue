@@ -60,6 +60,7 @@ onMounted(async () => {
         </RouterLink>
       </li>
       <pre>{{ JSON.stringify(resources, null, 2) }}</pre>
+
     </ul>
   </section>
 </template>
