@@ -1,6 +1,16 @@
 ```vue
 <script setup>
 import logo from './assets/logo.png'
+import { useRouter } from 'vue-router'
+import { useAuth } from './composables/useAuth.js'
+
+const router = useRouter()
+const { token, user, logout } = useAuth()
+
+function handleLogout() {
+  logout()
+  router.push('/')
+}
 </script>
 
 <template>
@@ -9,6 +19,14 @@ import logo from './assets/logo.png'
       <h1>
         <RouterLink to="/">Resurser</RouterLink>
       </h1>
+      <nav class="nav">
+        <template v-if="token">
+          <RouterLink to="/mina-bokningar">Mina bokningar</RouterLink>
+          <span class="email">{{ user?.email }}</span>
+          <button type="button" @click="handleLogout">Logga ut</button>
+        </template>
+        <RouterLink v-else to="/login">Logga in / Registrera</RouterLink>
+      </nav>
       <div class="header-content">
         <p>
           <img :src="logo" alt="Logo" />
@@ -74,6 +92,17 @@ header img {
   display: flex;
   align-items: center;
   gap: 1rem;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.email {
+  color: #666;
 }
 </style>
 ```
