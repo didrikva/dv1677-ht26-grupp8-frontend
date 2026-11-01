@@ -91,6 +91,14 @@ onMounted(load)
 </template>
 
 <style scoped>
+section {
+  color: #243b32;
+}
+
+h2 {
+  color: #243b32;
+}
+
 .bookings {
   list-style: none;
   padding: 0;
@@ -104,8 +112,9 @@ onMounted(load)
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  border: 1px solid #ddd;
+  border: 1px solid #d5e1d7;
   border-radius: 8px;
+  background: #f5f8f5;
 }
 
 .bookings p {
@@ -117,12 +126,40 @@ onMounted(load)
 }
 
 .history {
-  opacity: 0.6;
+  color: #647568;
   margin-top: 1rem;
 }
 
 .history-toggle {
   margin-top: 1rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid #cbd8cd;
+  border-radius: 8px;
+  background: #e8efe9;
+  color: #34583d;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.history-toggle:hover {
+  background: #dce7de;
+}
+
+.bookings button {
+  padding: 0.55rem 0.9rem;
+  border: 1px solid #426b4c;
+  border-radius: 8px;
+  background: #426b4c;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bookings button:hover {
+  background: #34583d;
+  border-color: #34583d;
 }
 
 </style>

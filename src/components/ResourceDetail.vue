@@ -11,6 +11,7 @@ const route = useRoute()
 const resource = ref(null)
 const bookings = ref([])
 const error = ref('')
+const bookingSuccess = ref('')
 const date = ref(null)
 const isPopupOpen = ref(false)
 const amountCpu = ref(0)
@@ -187,6 +188,7 @@ const bookResource = async () => {
         return
     }
 
+    bookingSuccess.value = ''
     const startsAt = new Date(date.value)
     const endsAt = new Date(startsAt.getTime() + 60 * 60 * 1000)
     const provider = resource.value.provider ?? resource.value.type
@@ -211,10 +213,11 @@ const bookResource = async () => {
         await createBooking(bookingData)
 
         error.value = ''
+        bookingSuccess.value = 'Bokningen har skapats!'
         isPopupOpen.value = false
-        await refreshResource()
     } catch (err) {
         console.error('Kunde inte boka resursen:', err)
+        bookingSuccess.value = ''
 
         if (err.status === 409) {
             if (err.code === 'CAPACITY_EXCEEDED') {
@@ -227,91 +230,121 @@ const bookResource = async () => {
         } else {
             error.value = err.message || 'Kunde inte boka resursen.'
         }
+        return
+    }
+
+    try {
+        await refreshResource()
+    } catch (err) {
+        console.error('Bokningen skapades, men resursen kunde inte uppdateras:', err)
+        error.value = 'Bokningen skapades, men resursens tillgänglighet kunde inte uppdateras.'
     }
 }
 </script>
 
 <template>
-    <section>
-        <div v-if="resource">
-            <p>Resursens namn: {{ resource.name }}</p>
+    <section class="resource-detail">
+        <div class="resource-top-grid">
+            <div v-if="resource" class="resource-summary">
+                <h1>{{ resource.name }}</h1>
 
-            <p v-if="resourceCapacity.ram ">
-                {{ Math.round(resourceCapacity.ram) }} {{ resourceCapacity.ramUnit }} RAM
-            </p>
+                <div class="resource-metrics">
+                    <span v-if="resourceCapacity.ram">
+                        {{ Math.round(resourceCapacity.ram) }} {{ resourceCapacity.ramUnit }} RAM
+                    </span>
+                    <span v-if="resourceCapacity.diskGb">
+                        {{ Math.round(resourceCapacity.diskGb) }} GB disk
+                    </span>
+                    <span v-if="resourceCapacity.vcpu">
+                        {{ Math.round(resourceCapacity.vcpu) }} vCPU
+                    </span>
+                </div>
 
-            <p v-if="resourceCapacity.diskGb ">
-                {{ Math.round(resourceCapacity.diskGb) }} GB Disk
-            </p>
+                <p class="resource-description">{{ resource.description }}</p>
+            </div>
 
-            <p v-if="resourceCapacity.vcpu ">
-                {{ Math.round(resourceCapacity.vcpu) }} vCPU
-            </p>
-
-            <p>{{ resource.description }}</p>
+            <div class="date-picker-section">
+                <h2>Välj datum och tid</h2>
+                <VueDatePicker v-model="date" class="date-picker" />
+            </div>
         </div>
 
-        <h2>Välj datum och tid</h2>
-        <VueDatePicker v-model="date" />
-
-        <div v-if="date">
-            <h2>Valt datum och tid:</h2>
-            <p>{{ date.toLocaleString('sv-SE', { dateStyle: 'long', timeStyle: 'short' }) }}</p>
+        <div class="selected-date" :class="{ 'has-date': date }">
+            <template v-if="date">
+                <span>Valt datum och tid</span>
+                <strong>{{ date.toLocaleString('sv-SE', { dateStyle: 'long', timeStyle: 'short' }) }}</strong>
+            </template>
+            <span v-else>Inget datum valt</span>
         </div>
-        <p v-else>Inget datum valt</p>
 
-        <div v-if="resource">
+        <div v-if="resource" class="time-section">
+            <h2>Välj en timme</h2>
             <ul class="time-grid">
                 <li v-for="slot in timeSlots" :key="slot.hour">
-                    <button @click="selectHour(slot.hour)">
-                        <h3>{{ slot.hour }}:00</h3>
+                    <button
+                        type="button"
+                        :class="{ 'selected-time': date && date.getHours() === slot.hour }"
+                        :aria-pressed="Boolean(date && date.getHours() === slot.hour)"
+                        @click="selectHour(slot.hour)"
+                    >
+                        <h3>{{ String(slot.hour).padStart(2, '0') }}:00</h3>
 
-                        <p v-if="slot.availability?.vcpu ">
+                        <p v-if="slot.availability?.vcpu">
                             {{ Math.round(slot.availability.vcpu) }} vCPU tillgängliga
                         </p>
 
-                        <p v-if="slot.availability?.ram ">
+                        <p v-if="slot.availability?.ram">
                             {{ Math.round(slot.availability.ram) }} {{ slot.availability.ramUnit }} RAM tillgängligt
                         </p>
 
-                        <p v-if="slot.availability?.diskGb ">
+                        <p v-if="slot.availability?.diskGb">
                             {{ Math.round(slot.availability.diskGb) }} GB Disk tillgänglig
                         </p>
 
-                        <p v-if="resourceCapacity.vcpu || resourceCapacity.ram  || resourceCapacity.diskGb ">
-                            Totalt:
-                            <span v-if="resourceCapacity.vcpu ">{{ Math.round(resourceCapacity.vcpu) }} vCPU</span><br>
-                            <span v-if="resourceCapacity.ram ">{{ Math.round(resourceCapacity.ram) }} {{ resourceCapacity.ramUnit }} RAM</span><br>
-                            <span v-if="resourceCapacity.diskGb ">{{ Math.round(resourceCapacity.diskGb) }} GB Disk</span><br>
+                        <p v-if="resourceCapacity.vcpu || resourceCapacity.ram || resourceCapacity.diskGb" class="total-capacity">
+                            <span>Totalt:</span>
+                            <span v-if="resourceCapacity.vcpu">{{ Math.round(resourceCapacity.vcpu) }} vCPU</span>
+                            <span v-if="resourceCapacity.ram">{{ Math.round(resourceCapacity.ram) }} {{ resourceCapacity.ramUnit }} RAM</span>
+                            <span v-if="resourceCapacity.diskGb">{{ Math.round(resourceCapacity.diskGb) }} GB Disk</span>
                         </p>
                     </button>
                 </li>
             </ul>
         </div>
 
-        <p v-if="error">{{ error }}</p>
+        <p v-if="bookingSuccess" class="success-message" role="status">{{ bookingSuccess }}</p>
+        <p v-if="error" class="error-message" role="alert">{{ error }}</p>
         <p v-else-if="!resource">Laddar resurs...</p>
 
-        <button v-if="token" class="book-button" @click="isPopupOpen = true">
-            Boka resurs
-        </button>
+        <div class="booking-actions">
+            <button
+                v-if="token"
+                class="book-button"
+                :class="{ 'book-button-ready': date }"
+                :disabled="!date"
+                type="button"
+                @click="bookingSuccess = ''; error = ''; isPopupOpen = true"
+            >
+                Boka resurs
+            </button>
 
-        <p v-else>
-            <RouterLink :to="{ path: '/login', query: { redirect: route.fullPath } }">
-                Logga in
-            </RouterLink>
-            för att boka.
-        </p>
+            <p v-else>
+                <RouterLink :to="{ path: '/login', query: { redirect: route.fullPath } }">
+                    Logga in
+                </RouterLink>
+                för att boka.
+            </p>
+        </div>
 
         <div
             v-if="isPopupOpen && token"
             class="popup-overlay"
             @click.self="isPopupOpen = false"
         >
-            <div class="popup">
-                <h2>Bekräfta bokning</h2>
+            <div class="popup" role="dialog" aria-modal="true" aria-labelledby="booking-title">
+                <h2 id="booking-title">Bekräfta bokning</h2>
 
-                <p v-if="date">
+                <p v-if="date" class="booking-summary">
                     Vald datum: {{ date.toLocaleDateString('sv-SE', { dateStyle: 'long' }) }}
                     <br>
                     Vald tid: {{ date.toLocaleTimeString('sv-SE', {
@@ -320,7 +353,7 @@ const bookResource = async () => {
                     }) }}
                 </p>
 
-                <p v-else>
+                <p v-else class="booking-summary">
                     Inget datum valt. Vänligen välj ett datum och tid innan du bekräftar bokningen.
                 </p>
 
@@ -329,18 +362,23 @@ const bookResource = async () => {
                 </p>
 
                 <div v-else>
-                    <label for="ram">RAM ({{ resourceCapacity.ramUnit }}):</label>
-                    <input
-                        id="ram"
-                        type="number"
-                        min="0"
-                        :max="selectedAvailability?.ram ?? 0"
-                        :value="amountRam"
-                        @input="amountRam = validateMax(Number($event.target.value), selectedAvailability?.ram ?? 0)"
-                    />
-                    <br>
+                    <div class="booking-field">
+                        <label for="ram">RAM ({{ resourceCapacity.ramUnit }}):</label>
+                        <input
+                            id="ram"
+                            type="number"
+                            min="0"
+                            :max="selectedAvailability?.ram ?? 0"
+                            :value="amountRam"
+                            @input="amountRam = validateMax(Number($event.target.value), selectedAvailability?.ram ?? 0)"
+                        />
+                        <p class="capacity-hint">
+                            {{ Math.round(selectedAvailability?.ram ?? 0) }} {{ resourceCapacity.ramUnit }} ledigt
+                            av {{ Math.round(resourceCapacity.ram ?? 0) }} {{ resourceCapacity.ramUnit }} totalt
+                        </p>
+                    </div>
 
-                    <div v-if="resource.capacity?.diskGb">
+                    <div v-if="resource.capacity?.diskGb" class="booking-field">
                         <label for="disk">Disk (GB):</label>
                         <input
                             id="disk"
@@ -350,17 +388,27 @@ const bookResource = async () => {
                             :value="amountDisk"
                             @input="amountDisk = validateMax(Number($event.target.value), selectedAvailability?.diskGb ?? 0)"
                         />
+                        <p class="capacity-hint">
+                            {{ Number(selectedAvailability?.diskGb ?? 0).toFixed(1) }} GB ledigt
+                            av {{ Number(resourceCapacity.diskGb ?? 0).toFixed(1) }} GB totalt
+                        </p>
                     </div>
 
-                    <label for="cpu">Antal vCPU:</label>
-                    <input
-                        id="cpu"
-                        type="number"
-                        min="0"
-                        :max="selectedAvailability?.vcpu ?? 0"
-                        :value="amountCpu"
-                        @input="amountCpu = validateMax(Number($event.target.value), selectedAvailability?.vcpu ?? 0)"
-                    />
+                    <div class="booking-field">
+                        <label for="cpu">Antal vCPU:</label>
+                        <input
+                            id="cpu"
+                            type="number"
+                            min="0"
+                            :max="selectedAvailability?.vcpu ?? 0"
+                            :value="amountCpu"
+                            @input="amountCpu = validateMax(Number($event.target.value), selectedAvailability?.vcpu ?? 0)"
+                        />
+                        <p class="capacity-hint">
+                            {{ Math.round(selectedAvailability?.vcpu ?? 0) }} vCPU lediga
+                            av {{ Math.round(resourceCapacity.vcpu ?? 0) }} totalt
+                        </p>
+                    </div>
                 </div>
 
                 <div class="popup-actions">
@@ -377,26 +425,274 @@ const bookResource = async () => {
 </template>
 
 <style scoped>
+.resource-detail {
+    display: grid;
+    gap: 1.5rem;
+    color: #243b32;
+}
+
+.resource-detail h1,
+.resource-detail h2,
+.resource-detail h3 {
+    color: #243b32;
+}
+
+.resource-top-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 1.5rem;
+}
+
+.resource-summary,
+.date-picker-section {
+    box-sizing: border-box;
+    min-width: 0;
+    height: 100%;
+    padding: 1.25rem 1.5rem;
+    border: 1px solid #d5e1d7;
+    border-radius: 12px;
+    background: #f5f8f5;
+}
+
+.resource-summary {
+    width: 100%;
+    padding: 1.25rem;
+    border-left: 4px solid #789681;
+    box-shadow: 0 4px 14px rgb(36 59 50 / 6%);
+    overflow-wrap: anywhere;
+}
+
+.date-picker-section {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.resource-summary h1 {
+    margin-bottom: 1rem;
+    color: #243b32;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.resource-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.resource-metrics span {
+    padding: 0.35rem 0.7rem;
+    border: 1px solid #d5e1d7;
+    border-radius: 999px;
+    background: #e8efe9;
+    color: #34583d;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.resource-description {
+    margin: 0;
+    color: #53675c;
+    line-height: 1.5;
+}
+
+.date-picker-section h2,
+.time-section h2 {
+    margin-bottom: 1rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.date-picker {
+    --dp-primary-color: #426b4c;
+    --dp-border-radius: 8px;
+    --dp-border-color: #cbd8cd;
+    --dp-menu-border-color: #d5e1d7;
+}
+
+.date-picker :deep(.dp__input) {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 46px;
+    border-color: #cbd8cd;
+    border-radius: 8px;
+    color: #243b32;
+}
+
+.date-picker :deep(.dp__input:hover) {
+    border-color: #789681;
+}
+
+.date-picker :deep(.dp__input:focus) {
+    border-color: #426b4c;
+    box-shadow: 0 0 0 3px rgb(66 107 76 / 16%);
+}
+
+.selected-date {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.85rem 1rem;
+    border-radius: 8px;
+    background: #f1f3f1;
+    color: #53675c;
+}
+
+.selected-date.has-date {
+    background: #e5f2e7;
+    color: #245c32;
+}
+
+.selected-date strong {
+    font-weight: 700;
+}
+
 .time-grid {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 2rem;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 1rem;
     list-style: none;
     padding: 0;
 }
 
 .time-grid li {
-    border: 1px solid #ddd;
-    border-radius: 8px;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid #d5e1d7;
+    border-radius: 10px;
+    background: #f5f8f5;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
-button {
+.time-grid li:hover,
+.time-grid li:focus-within {
+    transform: translateY(-3px);
+    border-color: #789681;
+    box-shadow: 0 7px 16px rgb(36 59 50 / 12%);
+}
+
+.time-grid button {
+    display: flex;
     width: 100%;
-    height: 100%;
-    background: none;
-    border: none;
+    min-height: 190px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    padding: 0.9rem;
+    border: 0;
+    background: transparent;
+    color: #42584d;
+    font: inherit;
+    text-align: left;
     cursor: pointer;
-    padding: 1rem;
+    transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.time-grid button:hover,
+.time-grid button.selected-time {
+    background: #e8efe9;
+}
+
+.time-grid button.selected-time {
+    box-shadow: inset 0 0 0 2px #789681;
+}
+
+.time-grid button:focus-visible,
+.book-button:focus-visible,
+.booking-button:focus-visible,
+.cancel-button:focus-visible {
+    outline: 3px solid #426b4c;
+    outline-offset: 3px;
+}
+
+.time-grid h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.time-grid p {
+    margin: 0;
+    font-size: 0.88rem;
+    line-height: 1.35;
+}
+
+.total-capacity {
+    display: grid;
+    gap: 0.1rem;
+    margin-top: auto !important;
+    padding-top: 0.5rem;
+    border-top: 1px solid #d5e1d7;
+    color: #647568;
+    font-size: 0.8rem !important;
+}
+
+.error-message {
+    padding: 0.85rem 1rem;
+    border-radius: 8px;
+    background: #fbe9e7;
+    color: #9c3028;
+}
+
+.success-message {
+    padding: 0.85rem 1rem;
+    border: 1px solid #c5dfc9;
+    border-radius: 8px;
+    background: #e5f2e7;
+    color: #245c32;
+    font-weight: 600;
+}
+
+.booking-actions {
+    display: flex;
+    justify-content: center;
+}
+
+.book-button,
+.booking-button,
+.cancel-button {
+    min-height: 46px;
+    padding: 0.7rem 1.25rem;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.book-button {
+    background: #e8efe9;
+    color: #78877c;
+    cursor: not-allowed;
+}
+
+.book-button-ready,
+.booking-button {
+    background: #426b4c;
+    color: #fff;
+    cursor: pointer;
+}
+
+.book-button-ready:hover,
+.booking-button:hover {
+    transform: translateY(-2px);
+    background: #34583d;
+    box-shadow: 0 5px 12px rgb(36 59 50 / 18%);
+}
+
+.cancel-button {
+    border-color: #cbd8cd;
+    background: #f5f8f5;
+    color: #42584d;
+}
+
+.cancel-button:hover {
+    background: #e8efe9;
 }
 
 .popup-overlay {
@@ -404,105 +700,132 @@ button {
     inset: 0;
     z-index: 9999;
     display: flex;
+    overflow-y: auto;
     justify-content: center;
     align-items: center;
-    background: rgba(0, 0, 0, 0.55);
+    padding: 1.5rem;
+    background: rgb(15 23 42 / 55%);
 }
 
 .popup {
-    width: min(420px, calc(100% - 40px));
-    padding: 50px;
-    background: white;
-    color: #222;
+    width: min(520px, 100%);
+    max-height: 100%;
+    overflow-y: auto;
+    padding: 1.5rem;
+    border: 1px solid #d5e1d7;
     border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    background: #fff;
+    color: #243b32;
+    box-shadow: 0 12px 36px rgb(15 23 42 / 25%);
 }
 
-.popup p {
-    padding: 50px;
-    background: white;
-    color: #222;
-    border-radius: 12px;
-    border: 3px solid #ddd;
-    font-size: 2rem;
-    font-weight: bold;
+.popup h2 {
+    margin-bottom: 1rem;
+    font-size: 1.4rem;
+    font-weight: 700;
+}
+
+.booking-summary {
+    margin-bottom: 1rem;
+    padding: 0.85rem;
+    border-radius: 8px;
+    background: #f5f8f5;
+    line-height: 1.6;
+}
+
+.popup label {
+    display: block;
+    margin: 0 0 0.35rem;
+    color: #42584d;
+    font-weight: 600;
+}
+
+.booking-field {
+    margin-top: 0.85rem;
+}
+
+.popup input {
+    width: 100%;
+    min-height: 42px;
+    margin: 0;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid #cbd8cd;
+    border-radius: 7px;
+    color: #243b32;
+    font: inherit;
+}
+
+.capacity-hint {
+    margin: 0.3rem 0 0;
+    color: #647568;
+    font-size: 0.85rem;
+}
+
+.popup input:focus {
+    border-color: #426b4c;
+    outline: 3px solid rgb(66 107 76 / 16%);
 }
 
 .popup-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
-    margin-top: 24px;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
 }
 
-.booking-button {
-    cursor: pointer;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    background-color: rgb(151, 197, 151);
+@media (max-width: 1000px) {
+    .time-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
 }
 
-.cancel-button {
-    cursor: pointer;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    background-color: rgb(255, 157, 157);
+@media (max-width: 650px) {
+    .resource-top-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .time-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.65rem;
+    }
+
+    .time-grid button {
+        min-height: 175px;
+        padding: 0.7rem;
+    }
 }
 
-.book-button {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 400px;
-    height: 75px;
-    padding: 14px;
-    margin: 0 auto;
-    cursor: pointer;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    background-color: #f0f0f0;
+@media (max-width: 420px) {
+    .time-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .resource-summary,
+    .date-picker-section {
+        padding: 1rem;
+    }
+
+    .popup-overlay {
+        padding: 0.75rem;
+    }
+
+    .popup {
+        padding: 1rem;
+    }
+
+    .popup-actions {
+        flex-direction: column;
+    }
 }
 
-label {
-    padding: 10px;
-}
-
-input {
-    padding: 5px;
-    margin: 10px;
-    width: 100px;
-}
-.time-grid li {
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.time-grid button {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    min-height: 220px;
-    padding: 16px;
-    text-align: center;
-}
-
-.time-grid h3 {
-    margin: 0 0 8px;
-    font-size: 1.2rem;
-}
-
-.resource-info p {
-    margin: 4px 0;
-    font-size: 0.9rem;
-}
-
-.total-capacity {
-    border-top: 1px solid #ddd;
-    padding-top: 8px;
-    margin-top: auto;
-    font-size: 0.8rem;
-    color: #666;
+@media (prefers-reduced-motion: reduce) {
+    .time-grid li,
+    .time-grid button,
+    .book-button,
+    .booking-button,
+    .cancel-button {
+        transition: none;
+    }
 }
 </style>
