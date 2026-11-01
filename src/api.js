@@ -104,3 +104,20 @@ export function updateBooking(id, { resource_id, start_time, end_time, status })
 export function deleteBooking(id) {
   return apiFetch(`/api/bookings/${id}`, { method: 'DELETE' })
 }
+
+export function createComment(bookingId, comment) {
+  return apiFetch(`/api/bookings/${bookingId}/comments`, {
+    method: 'POST',
+    body: comment
+  })
+}
+
+export function getMyComments(bookingId) {
+  return apiFetch(`/api/bookings/${bookingId}/comments`)
+}
+
+export function deleteComment(id) {
+  return apiFetch(`/api/comments/${id}`, {
+    method: 'DELETE'
+  })
+}

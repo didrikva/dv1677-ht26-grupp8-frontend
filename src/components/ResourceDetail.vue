@@ -15,7 +15,7 @@ const date = ref(null)
 const isPopupOpen = ref(false)
 const amountCpu = ref(0)
 const amountRam = ref(0)
-const amountDisk = ref(1)
+const amountDisk = ref(0.1)
 const { token } = useAuth()
 let socket
 
