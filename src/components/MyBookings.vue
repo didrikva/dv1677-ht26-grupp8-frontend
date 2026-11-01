@@ -182,60 +182,92 @@ onUnmounted(() => socket?.disconnect())
         @click.self="closeCommentPopup"
       >
         <div class="popup">
-          <h2>Kommentarer</h2>
+          <div class="popup-header">
+            <div>
+              <h2>Kommentarer</h2>
+              <p class="popup-subtitle">Diskussion om din bokning</p>
+            </div>
 
-          <p>
-            Bokning:
-            {{ new Date(selectedBooking.startsAt).toLocaleString('sv-SE') }} <br> {{ selectedBooking.amount_cpu }} CPU · {{ selectedBooking.amount_ram }} MB RAM
-            <span v-if="selectedBooking.amount_disk > 0.1"> · {{ selectedBooking.amount_disk }} GB Disk</span>
-          </p>
+            <button
+              class="close-button"
+              type="button"
+              @click="closeCommentPopup"
+              aria-label="Stäng"
+            >
+              &times;
+            </button>
+          </div>
+
+          <div class="booking-info">
+            <p class="booking-date">
+              {{ formatDate(selectedBooking.startsAt) }}
+            </p>
+
+            <p>
+              {{ selectedBooking.amount_cpu }} CPU ·
+              {{ selectedBooking.amount_ram }} MB RAM
+              <span v-if="selectedBooking.amount_disk > 0.1">
+                · {{ selectedBooking.amount_disk }} GB Disk
+              </span>
+            </p>
+          </div>
 
           <div class="comments-list">
-            <p v-if="comments.length === 0">
-              Inga kommentarer ännu.
-            </p>
+            <div v-if="comments.length === 0" class="empty-comments">
+              <p>Inga kommentarer ännu.</p>
+              <small>Börja diskussionen genom att skriva en kommentar nedan.</small>
+            </div>
 
             <div
               v-for="comment in comments"
               :key="comment._id"
               class="comment"
-
             >
-              <p>{{ comment.text }}</p>
+              <p class="comment-text">{{ comment.text }}</p>
 
-              <small>
-                {{ new Date(comment.createdAt).toLocaleString('sv-SE') }}
-              </small>
+              <div class="comment-footer">
+                <small>{{ formatDate(comment.createdAt) }}</small>
 
-              <button @click="removeComment(comment._id)">
-                Ta bort
-              </button>
+                <button
+                  class="delete-comment"
+                  type="button"
+                  @click="removeComment(comment._id)"
+                >
+                  Ta bort
+                </button>
+              </div>
             </div>
           </div>
 
-          <p v-if="commentError">{{ commentError }}</p>
+          <p v-if="commentError" class="comment-error">
+            {{ commentError }}
+          </p>
 
-          <textarea
-            v-model="newComment"
-            placeholder="Skriv en kommentar..."
-            rows="3"
-          ></textarea>
+          <div class="comment-form">
+            <textarea
+              v-model="newComment"
+              placeholder="Skriv en kommentar..."
+              rows="3"
+            ></textarea>
 
-          <div class="popup-actions">
-            <button
-              class="booking-button"
-              @click="submitComment"
-              :disabled="!newComment.trim()"
-            >
-              Skicka kommentar
-            </button>
+            <div class="popup-actions">
+              <button
+                class="send-button"
+                type="button"
+                @click="submitComment"
+                :disabled="!newComment.trim()"
+              >
+                Skicka kommentar
+              </button>
 
-            <button
-              class="cancel-button"
-              @click="closeCommentPopup"
-            >
-              Stäng
-            </button>
+              <button
+                class="close-popup-button"
+                type="button"
+                @click="closeCommentPopup"
+              >
+                Stäng
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -326,39 +358,221 @@ h2 {
 }
 
 .popup-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: rgba(0, 0, 0, 0.55);
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  background: rgba(20, 35, 28, 0.65);
+  backdrop-filter: blur(3px);
 }
 
 .popup {
-    width: min(420px, calc(100% - 40px));
-    padding: 50px;
-    background: white;
-    color: #222;
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  width: min(550px, 100%);
+  max-height: 85vh;
+  padding: 1.5rem;
+  background: #f5f8f5;
+  color: #243b32;
+  border: 1px solid #d5e1d7;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
 }
 
-.popup p {
-    padding: 50px;
-    background: white;
-    color: #222;
-    border-radius: 12px;
-    border: 3px solid #ddd;
-    font-size: 2rem;
-    font-weight: bold;
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.popup-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.popup-subtitle {
+  margin: 0.3rem 0 0;
+  color: #647568;
+  font-size: 0.9rem;
+}
+
+.close-button {
+  border: none;
+  background: transparent;
+  color: #647568;
+  font-size: 1.8rem;
+  cursor: pointer;
+}
+
+.close-button:hover {
+  color: #243b32;
+}
+
+.booking-info {
+  padding: 0.9rem 1rem;
+  margin-bottom: 1rem;
+  background: #e8efe9;
+  border: 1px solid #d5e1d7;
+  border-radius: 8px;
+}
+
+.booking-info p {
+  margin: 0.2rem 0;
+  font-size: 0.9rem;
+}
+
+.booking-date {
+  font-weight: 700;
+  color: #34583d;
+}
+
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 300px;
+  min-height: 100px;
+  overflow-y: auto;
+  padding: 0.2rem;
+}
+
+.empty-comments {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #647568;
+  background: #fff;
+  border: 1px dashed #cbd8cd;
+  border-radius: 8px;
+}
+
+.empty-comments p {
+  margin: 0 0 0.4rem;
+  font-weight: 600;
+  color: #34583d;
+}
+
+.empty-comments small {
+  font-size: 0.85rem;
+}
+
+.comment {
+  padding: 0.9rem 1rem;
+  background: #fff;
+  border: 1px solid #d5e1d7;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(36, 59, 50, 0.04);
+}
+
+.comment-text {
+  margin: 0 0 0.8rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.comment-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  border-top: 1px solid #edf1ed;
+  padding-top: 0.6rem;
+}
+
+.comment-footer small {
+  color: #647568;
+  font-size: 0.8rem;
+}
+
+.delete-comment {
+  padding: 0.3rem 0.6rem;
+  border: none;
+  border-radius: 6px;
+  background: #fff0ed;
+  color: #bd5145;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.delete-comment:hover {
+  background: #ffded8;
+}
+
+.comment-error {
+  color: #c0392b;
+  font-size: 0.9rem;
+}
+
+.comment-form {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #d5e1d7;
+}
+
+.comment-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid #cbd8cd;
+  border-radius: 8px;
+  background: #fff;
+  color: #243b32;
+  font: inherit;
+  resize: vertical;
+}
+
+.comment-form textarea:focus {
+  outline: 2px solid #426b4c;
+  outline-offset: 1px;
 }
 
 .popup-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 24px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+
+.send-button,
+.close-popup-button {
+  padding: 0.6rem 0.9rem;
+  border: 1px solid #426b4c;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.send-button {
+  background: #426b4c;
+  color: #fff;
+}
+
+.send-button:hover:not(:disabled) {
+  background: #34583d;
+}
+
+.send-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.close-popup-button {
+  background: #e8efe9;
+  color: #34583d;
+}
+
+.close-popup-button:hover {
+  background: #dce7de;
 }
 
 </style>
