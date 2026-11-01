@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { getMyBookings, deleteBooking, getResources, createComment, getMyComments, deleteComment } from '../api.js'
 import { useAuth } from '../composables/useAuth.js'
+import { io } from 'socket.io-client'
 
 const bookings = ref([])
 const loading = ref(true)
@@ -14,6 +15,15 @@ const selectedBooking = ref(null)
 const comments = ref([])
 const newComment = ref('')
 const commentError = ref('')
+let socket
+
+function addComment(comment) {
+  if (comments.value.some(existing => String(existing._id) === String(comment._id))) return
+
+  comments.value = [...comments.value, comment].sort(
+    (first, second) => new Date(first.createdAt) - new Date(second.createdAt)
+  )
+}
 
 function formatDate(value) {
   return value
@@ -21,14 +31,39 @@ function formatDate(value) {
     : ''
 }
 
+function closeCommentPopup() {
+  isPopupOpen.value = false
+  socket?.disconnect()
+  socket = undefined
+}
+
 async function openCommentPopup(booking) {
+  socket?.disconnect()
   selectedBooking.value = booking
+  comments.value = []
   isPopupOpen.value = true
   newComment.value = ''
   commentError.value = ''
 
+  socket = io(import.meta.env.VITE_API_URL || 'https://dv1677-laforge.nplab.bth.se', {
+    transports: ['polling'],
+    auth: { token: token.value }
+  })
+
+  socket.emit('join:booking', booking._id, (response) => {
+    console.log('Joined booking room:', response)
+  })
+  socket.on('comment:created', addComment)
+
+  socket.on('comment:deleted', (commentId) => {
+    comments.value = comments.value.filter(
+      comment => comment._id !== commentId
+    )
+  })
+
   try {
-    comments.value = await getMyComments(booking._id)
+    const loadedComments = await getMyComments(booking._id)
+    loadedComments.forEach(addComment)
   } catch (err) {
     commentError.value = 'Kunde inte hämta kommentarer.'
     console.error(err)
@@ -41,10 +76,10 @@ async function submitComment() {
   try {
     const comment = await createComment(
       selectedBooking.value._id,
-      { text: newComment.value }
+      { text: newComment.value.trim() }
     )
 
-    comments.value.push(comment)
+    addComment(comment)
     newComment.value = ''
   } catch (err) {
     commentError.value = 'Kunde inte skapa kommentaren.'
@@ -100,6 +135,7 @@ const activeBookings = computed(() => bookings.value.filter((b) => !isHistory(b)
 const historyBookings = computed(() => bookings.value.filter(isHistory))
 
 onMounted(load)
+onUnmounted(() => socket?.disconnect())
 </script>
 
 <template>
@@ -143,14 +179,15 @@ onMounted(load)
       <div
         v-if="isPopupOpen && selectedBooking"
         class="popup-overlay"
-        @click.self="isPopupOpen = false"
+        @click.self="closeCommentPopup"
       >
         <div class="popup">
           <h2>Kommentarer</h2>
 
           <p>
             Bokning:
-            {{ new Date(selectedBooking.startsAt).toLocaleString('sv-SE') }}
+            {{ new Date(selectedBooking.startsAt).toLocaleString('sv-SE') }} <br> {{ selectedBooking.amount_cpu }} CPU · {{ selectedBooking.amount_ram }} MB RAM
+            <span v-if="selectedBooking.amount_disk > 0.1"> · {{ selectedBooking.amount_disk }} GB Disk</span>
           </p>
 
           <div class="comments-list">
@@ -162,6 +199,7 @@ onMounted(load)
               v-for="comment in comments"
               :key="comment._id"
               class="comment"
+
             >
               <p>{{ comment.text }}</p>
 
@@ -169,10 +207,7 @@ onMounted(load)
                 {{ new Date(comment.createdAt).toLocaleString('sv-SE') }}
               </small>
 
-              <button
-                v-if="String(comment.author) === String(token.userId)"
-                @click="removeComment(comment._id)"
-              >
+              <button @click="removeComment(comment._id)">
                 Ta bort
               </button>
             </div>
@@ -197,7 +232,7 @@ onMounted(load)
 
             <button
               class="cancel-button"
-              @click="isPopupOpen = false"
+              @click="closeCommentPopup"
             >
               Stäng
             </button>
